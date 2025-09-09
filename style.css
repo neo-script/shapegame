@@ -1,16 +1,34 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #DFEDEE; /* background visible everywhere */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 canvas {
-  display: block;
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 0; /* canvas behind everything */
+  z-index: 0; /* behind buttons */
 }
 
 button {
   position: relative;
-  z-index: 1; /* buttons on top of canvas */
+  z-index: 2; /* on top of canvas */
   padding: 10px 20px;
   font-size: 16px;
-  margin: 10px;
+  margin: 5px;
   cursor: pointer;
+}
+
+#scoreDisplay {
+  position: relative;
+  z-index: 2; /* on top */
+  font-size: 20px;
+  font-weight: bold;
+  margin: 5px;
 }
