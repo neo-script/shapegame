@@ -7,17 +7,18 @@ const restartBtn = document.getElementById('restartBtn');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let circles = [];
+let shapes = [];
 let score = 0;
 let gameOver = false;
 
 const colors = ['#A7E6A1', '#A1D2E6', '#A1A1E6', '#E6A1BA', '#FFE69A', '#FFC69A'];
 
-class Circle {
-  constructor(x, y, radius) {
+class Shape {
+  constructor(x, y, size, type) {
     this.x = x;
     this.y = y;
-    this.radius = radius;
+    this.size = size;
+    this.type = type; // 'circle' or 'square'
     this.speedX = Math.random() * 3 + 1;
     this.speedY = Math.random() * 3 + 1;
     this.color = colors[Math.floor(Math.random() * colors.length)];
@@ -25,24 +26,28 @@ class Circle {
 
   draw() {
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
+    if(this.type === 'circle') {
+      ctx.beginPath();
+      ctx.arc(this.x, this.size, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(this.x - this.size, this.y - this.size, this.size*2, this.size*2);
+    }
   }
 
   update() {
     this.x += this.speedX;
     this.y += this.speedY;
 
-    if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) this.speedX *= -1;
-    if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) this.speedY *= -1;
+    if (this.x - this.size < 0 || this.x + this.size > canvas.width) this.speedX *= -1;
+    if (this.y - this.size < 0 || this.y + this.size > canvas.height) this.speedY *= -1;
   }
 
   bounceFromMouse(mx, my) {
     const dx = this.x - mx;
     const dy = this.y - my;
     const distance = Math.sqrt(dx*dx + dy*dy);
-    if(distance < this.radius + 10) { // +10 for cursor proximity
+    if(distance < this.size + 10) {
       const angle = Math.atan2(dy, dx);
       const speed = 5;
       this.speedX = Math.cos(angle) * speed;
@@ -53,42 +58,72 @@ class Circle {
   }
 }
 
-function initCircles(num = 5) {
-  circles = [];
+function initShapes(num = 5) {
+  shapes = [];
   let attempts = 0;
-  while(circles.length < num && attempts < 100) {
-    const radius = Math.random() * 30 + 20;
-    const x = Math.random() * (canvas.width - 2*radius) + radius;
-    const y = Math.random() * (canvas.height - 2*radius) + radius;
+  while(shapes.length < num && attempts < 200) {
+    const size = Math.random() * 30 + 20;
+    const x = Math.random() * (canvas.width - 2*size) + size;
+    const y = Math.random() * (canvas.height - 2*size) + size;
+    const type = Math.random() < 0.5 ? 'circle' : 'square';
+    const newShape = new Shape(x, y, size, type);
 
-    const newCircle = new Circle(x, y, radius);
     let overlapping = false;
-
-    for(let c of circles) {
-      const dx = newCircle.x - c.x;
-      const dy = newCircle.y - c.y;
-      if(Math.sqrt(dx*dx + dy*dy) < newCircle.radius + c.radius) {
-        overlapping = true;
-        break;
+    for(let s of shapes) {
+      const dx = newShape.x - s.x;
+      const dy = newShape.y - s.y;
+      const distance = Math.sqrt(dx*dx + dy*dy);
+      if(newShape.type === 'circle' && s.type === 'circle') {
+        if(distance < newShape.size + s.size) overlapping = true;
+      } else if(newShape.type === 'square' && s.type === 'square') {
+        if(Math.abs(newShape.x - s.x) < newShape.size + s.size &&
+           Math.abs(newShape.y - s.y) < newShape.size + s.size) overlapping = true;
+      } else {
+        // circle-square overlap
+        let circle = newShape.type === 'circle' ? newShape : s;
+        let square = newShape.type === 'square' ? newShape : s;
+        let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
+        let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
+        let dx = circle.x - closestX;
+        let dy = circle.y - closestY;
+        if(Math.sqrt(dx*dx + dy*dy) < circle.size) overlapping = true;
       }
+      if(overlapping) break;
     }
 
-    if(!overlapping) circles.push(newCircle);
+    if(!overlapping) shapes.push(newShape);
     attempts++;
   }
 }
 
 function checkCollision() {
-  for(let i=0; i<circles.length; i++) {
-    for(let j=i+1; j<circles.length; j++) {
-      const c1 = circles[i];
-      const c2 = circles[j];
-      const dx = c1.x - c2.x;
-      const dy = c1.y - c2.y;
-      const distance = Math.sqrt(dx*dx + dy*dy);
-      if(distance < c1.radius + c2.radius) {
+  for(let i=0; i<shapes.length; i++) {
+    for(let j=i+1; j<shapes.length; j++) {
+      const s1 = shapes[i];
+      const s2 = shapes[j];
+      let collided = false;
+
+      if(s1.type === 'circle' && s2.type === 'circle') {
+        const dx = s1.x - s2.x;
+        const dy = s1.y - s2.y;
+        if(Math.sqrt(dx*dx + dy*dy) < s1.size + s2.size) collided = true;
+      } else if(s1.type === 'square' && s2.type === 'square') {
+        if(Math.abs(s1.x - s2.x) < s1.size + s2.size &&
+           Math.abs(s1.y - s2.y) < s1.size + s2.size) collided = true;
+      } else {
+        let circle = s1.type === 'circle' ? s1 : s2;
+        let square = s1.type === 'square' ? s1 : s2;
+        let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
+        let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
+        let dx = circle.x - closestX;
+        let dy = circle.y - closestY;
+        if(Math.sqrt(dx*dx + dy*dy) < circle.size) collided = true;
+      }
+
+      if(collided) {
         gameOver = true;
         showGameOver();
+        return;
       }
     }
   }
@@ -103,9 +138,9 @@ function showGameOver() {
 
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  circles.forEach(circle => {
-    circle.update();
-    circle.draw();
+  shapes.forEach(shape => {
+    shape.update();
+    shape.draw();
   });
   checkCollision();
   if(!gameOver) requestAnimationFrame(animate);
@@ -116,7 +151,7 @@ canvas.addEventListener('mousemove', e => {
   if(gameOver) return;
   const mx = e.clientX;
   const my = e.clientY;
-  circles.forEach(circle => circle.bounceFromMouse(mx, my));
+  shapes.forEach(shape => shape.bounceFromMouse(mx, my));
 });
 
 // Start & Restart
@@ -125,9 +160,9 @@ startBtn.addEventListener('click', () => {
   scoreDisplay.textContent = `Score: ${score}`;
   gameOver = false;
   restartBtn.style.display = 'none';
-  initCircles();
-  animate();
   startBtn.style.display = 'none';
+  initShapes();
+  animate();
 });
 
 restartBtn.addEventListener('click', () => {
@@ -135,6 +170,7 @@ restartBtn.addEventListener('click', () => {
   scoreDisplay.textContent = `Score: ${score}`;
   gameOver = false;
   restartBtn.style.display = 'none';
-  initCircles();
+  initShapes();
   animate();
 });
+
