@@ -28,7 +28,7 @@ class Shape {
     ctx.fillStyle = this.color;
     if(this.type === 'circle') {
       ctx.beginPath();
-      ctx.arc(this.x, this.size, this.size, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); // fixed
       ctx.fill();
     } else {
       ctx.fillRect(this.x - this.size, this.y - this.size, this.size*2, this.size*2);
@@ -39,8 +39,8 @@ class Shape {
     this.x += this.speedX;
     this.y += this.speedY;
 
-    if (this.x - this.size < 0 || this.x + this.size > canvas.width) this.speedX *= -1;
-    if (this.y - this.size < 0 || this.y + this.size > canvas.height) this.speedY *= -1;
+    if(this.x - this.size < 0 || this.x + this.size > canvas.width) this.speedX *= -1;
+    if(this.y - this.size < 0 || this.y + this.size > canvas.height) this.speedY *= -1;
   }
 
   bounceFromMouse(mx, my) {
@@ -70,27 +70,23 @@ function initShapes(num = 5) {
 
     let overlapping = false;
     for(let s of shapes) {
-      const dx = newShape.x - s.x;
-      const dy = newShape.y - s.y;
-      const distance = Math.sqrt(dx*dx + dy*dy);
+      let collided = false;
       if(newShape.type === 'circle' && s.type === 'circle') {
-        if(distance < newShape.size + s.size) overlapping = true;
+        collided = Math.hypot(newShape.x - s.x, newShape.y - s.y) < newShape.size + s.size;
       } else if(newShape.type === 'square' && s.type === 'square') {
-        if(Math.abs(newShape.x - s.x) < newShape.size + s.size &&
-           Math.abs(newShape.y - s.y) < newShape.size + s.size) overlapping = true;
+        collided = Math.abs(newShape.x - s.x) < newShape.size + s.size &&
+                   Math.abs(newShape.y - s.y) < newShape.size + s.size;
       } else {
-        // circle-square overlap
         let circle = newShape.type === 'circle' ? newShape : s;
         let square = newShape.type === 'square' ? newShape : s;
         let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
         let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
         let dx = circle.x - closestX;
         let dy = circle.y - closestY;
-        if(Math.sqrt(dx*dx + dy*dy) < circle.size) overlapping = true;
+        collided = Math.hypot(dx, dy) < circle.size;
       }
-      if(overlapping) break;
+      if(collided) overlapping = true;
     }
-
     if(!overlapping) shapes.push(newShape);
     attempts++;
   }
@@ -104,12 +100,10 @@ function checkCollision() {
       let collided = false;
 
       if(s1.type === 'circle' && s2.type === 'circle') {
-        const dx = s1.x - s2.x;
-        const dy = s1.y - s2.y;
-        if(Math.sqrt(dx*dx + dy*dy) < s1.size + s2.size) collided = true;
+        collided = Math.hypot(s1.x - s2.x, s1.y - s2.y) < s1.size + s2.size;
       } else if(s1.type === 'square' && s2.type === 'square') {
-        if(Math.abs(s1.x - s2.x) < s1.size + s2.size &&
-           Math.abs(s1.y - s2.y) < s1.size + s2.size) collided = true;
+        collided = Math.abs(s1.x - s2.x) < s1.size + s2.size &&
+                   Math.abs(s1.y - s2.y) < s1.size + s2.size;
       } else {
         let circle = s1.type === 'circle' ? s1 : s2;
         let square = s1.type === 'square' ? s1 : s2;
@@ -117,7 +111,7 @@ function checkCollision() {
         let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
         let dx = circle.x - closestX;
         let dy = circle.y - closestY;
-        if(Math.sqrt(dx*dx + dy*dy) < circle.size) collided = true;
+        collided = Math.hypot(dx, dy) < circle.size;
       }
 
       if(collided) {
@@ -146,7 +140,6 @@ function animate() {
   if(!gameOver) requestAnimationFrame(animate);
 }
 
-// Mouse tracking
 canvas.addEventListener('mousemove', e => {
   if(gameOver) return;
   const mx = e.clientX;
@@ -154,7 +147,6 @@ canvas.addEventListener('mousemove', e => {
   shapes.forEach(shape => shape.bounceFromMouse(mx, my));
 });
 
-// Start & Restart
 startBtn.addEventListener('click', () => {
   score = 0;
   scoreDisplay.textContent = `Score: ${score}`;
