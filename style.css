@@ -2,6 +2,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   font-family: Arial, sans-serif;
   background-color: #DFEDEE;
   color: #333;
@@ -11,8 +12,10 @@ body {
 }
 
 canvas {
-  border: 2px solid #333;
   display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 button {
