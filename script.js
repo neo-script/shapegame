@@ -28,7 +28,7 @@ class Shape {
     ctx.fillStyle = this.color;
     if(this.type === 'circle') {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); // fixed
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.fillRect(this.x - this.size, this.y - this.size, this.size*2, this.size*2);
@@ -46,7 +46,7 @@ class Shape {
   bounceFromMouse(mx, my) {
     const dx = this.x - mx;
     const dy = this.y - my;
-    const distance = Math.sqrt(dx*dx + dy*dy);
+    const distance = Math.hypot(dx, dy);
     if(distance < this.size + 10) {
       const angle = Math.atan2(dy, dx);
       const speed = 5;
@@ -77,6 +77,7 @@ function initShapes(num = 5) {
         collided = Math.abs(newShape.x - s.x) < newShape.size + s.size &&
                    Math.abs(newShape.y - s.y) < newShape.size + s.size;
       } else {
+        // circle-square overlap
         let circle = newShape.type === 'circle' ? newShape : s;
         let square = newShape.type === 'square' ? newShape : s;
         let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
@@ -97,27 +98,19 @@ function checkCollision() {
     for(let j=i+1; j<shapes.length; j++) {
       const s1 = shapes[i];
       const s2 = shapes[j];
-      let collided = false;
-
-      if(s1.type === 'circle' && s2.type === 'circle') {
-        collided = Math.hypot(s1.x - s2.x, s1.y - s2.y) < s1.size + s2.size;
-      } else if(s1.type === 'square' && s2.type === 'square') {
-        collided = Math.abs(s1.x - s2.x) < s1.size + s2.size &&
-                   Math.abs(s1.y - s2.y) < s1.size + s2.size;
-      } else {
+      // Only circle-square collisions trigger game over
+      if((s1.type === 'circle' && s2.type === 'square') || (s1.type === 'square' && s2.type === 'circle')) {
         let circle = s1.type === 'circle' ? s1 : s2;
         let square = s1.type === 'square' ? s1 : s2;
         let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
         let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
         let dx = circle.x - closestX;
         let dy = circle.y - closestY;
-        collided = Math.hypot(dx, dy) < circle.size;
-      }
-
-      if(collided) {
-        gameOver = true;
-        showGameOver();
-        return;
+        if(Math.hypot(dx, dy) < circle.size) {
+          gameOver = true;
+          showGameOver();
+          return;
+        }
       }
     }
   }
