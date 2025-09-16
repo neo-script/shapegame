@@ -2,17 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circles vs Squares</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>Circles vs Squares</h1>
-  <p id="scoreDisplay">0</p>
+  <canvas id="gameCanvas"></canvas>
+
+  <h1 id="title">Circles vs Squares</h1>
+  <div id="scoreDisplay">0</div>
+
   <button id="startBtn">Start Game</button>
   <button id="restartBtn" style="display:none;">Retry</button>
-  <canvas id="gameCanvas"></canvas>
+
+  <!-- Left: Leaderboard -->
+  <div id="leftPanel">
+    <h3>Leaderboard</h3>
+    <ul id="leaderboardList"></ul>
+  </div>
+
+  <!-- Right: Username -->
+  <div id="rightPanel">
+    <h3>Username</h3>
+    <input type="text" id="usernameInput">
+    <p id="usernameError">This username is taken</p>
+  </div>
 
   <script src="script.js"></script>
 </body>
