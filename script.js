@@ -39,8 +39,23 @@ class Shape {
     this.x += this.speedX;
     this.y += this.speedY;
 
-    if(this.x - this.size < 0 || this.x + this.size > canvas.width) this.speedX *= -1;
-    if(this.y - this.size < 0 || this.y + this.size > canvas.height) this.speedY *= -1;
+    // Bounce off screen edges
+    if(this.x - this.size < 0) {
+      this.x = this.size;
+      this.speedX *= -1;
+    }
+    if(this.x + this.size > canvas.width) {
+      this.x = canvas.width - this.size;
+      this.speedX *= -1;
+    }
+    if(this.y - this.size < 0) {
+      this.y = this.size;
+      this.speedY *= -1;
+    }
+    if(this.y + this.size > canvas.height) {
+      this.y = canvas.height - this.size;
+      this.speedY *= -1;
+    }
   }
 
   bounceFromMouse(mx, my) {
@@ -52,8 +67,13 @@ class Shape {
       const speed = 5;
       this.speedX = Math.cos(angle) * speed;
       this.speedY = Math.sin(angle) * speed;
+
+      // Prevent shape from being pushed outside
+      this.x = Math.min(Math.max(this.size, this.x), canvas.width - this.size);
+      this.y = Math.min(Math.max(this.size, this.y), canvas.height - this.size);
+
       score++;
-      scoreDisplay.textContent = `Score: ${score}`;
+      scoreDisplay.textContent = score;
     }
   }
 }
@@ -77,7 +97,6 @@ function initShapes(num = 5) {
         collided = Math.abs(newShape.x - s.x) < newShape.size + s.size &&
                    Math.abs(newShape.y - s.y) < newShape.size + s.size;
       } else {
-        // circle-square overlap
         let circle = newShape.type === 'circle' ? newShape : s;
         let square = newShape.type === 'square' ? newShape : s;
         let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
@@ -118,8 +137,8 @@ function checkCollision() {
 
 function showGameOver() {
   restartBtn.style.display = 'inline';
-  ctx.fillStyle = 'red';
-  ctx.font = '48px Arial';
+  ctx.fillStyle = '#03646A';
+  ctx.font = '48px Schoolbell, cursive';
   ctx.fillText('GAME OVER', canvas.width/2 - 150, canvas.height/2);
 }
 
@@ -142,7 +161,7 @@ canvas.addEventListener('mousemove', e => {
 
 startBtn.addEventListener('click', () => {
   score = 0;
-  scoreDisplay.textContent = `Score: ${score}`;
+  scoreDisplay.textContent = score;
   gameOver = false;
   restartBtn.style.display = 'none';
   startBtn.style.display = 'none';
@@ -152,10 +171,4 @@ startBtn.addEventListener('click', () => {
 
 restartBtn.addEventListener('click', () => {
   score = 0;
-  scoreDisplay.textContent = `Score: ${score}`;
-  gameOver = false;
-  restartBtn.style.display = 'none';
-  initShapes();
-  animate();
-});
-
+  scoreDisplay.textContent
