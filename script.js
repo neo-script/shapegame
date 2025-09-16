@@ -8,6 +8,7 @@ const usernameInput = document.getElementById('usernameInput');
 const usernameError = document.getElementById('usernameError');
 const leaderboardList = document.getElementById('leaderboardList');
 const leftSidebar = document.getElementById('leftSidebar');
+const pauseBtn = document.getElementById('pauseBtn');
 
 // ===== Canvas sizing =====
 function resizeCanvas() {
@@ -21,6 +22,10 @@ resizeCanvas();
 let shapes = [];
 let score = 0;
 let gameOver = false;
+let isPaused = false;
+
+// Track mouse to spawn shapes far away from it
+let lastMouse = { x: window.innerWidth * 0.7, y: window.innerHeight * 0.5 };
 
 const colors = ['#A7E6A1', '#A1D2E6', '#A1A1E6', '#E6A1BA', '#FFE69A', '#FFC69A'];
 
@@ -69,15 +74,13 @@ class Shape {
     if (this.y + this.size > canvas.height) { this.y = canvas.height - this.size; this.speedY *= -1; }
 
     // bounce off sidebar (use cached rect)
-    // Translate rect (client coords) to canvas coords (same here since canvas is fullscreen at 0,0)
     if (sidebarRect) {
       const r = sidebarRect;
       const inX = this.x + this.size > r.left && this.x - this.size < r.right;
       const inY = this.y + this.size > r.top  && this.y - this.size < r.bottom;
       if (inX && inY) {
-        // simple reflect outwards: push shape to the right of the sidebar and invert X
         if (this.x < r.right + this.size) this.x = r.right + this.size;
-        this.speedX = Math.abs(this.speedX);
+        this.speedX = Math.abs(this.speedX); // push to the right
       }
     }
   }
@@ -101,18 +104,31 @@ class Shape {
   }
 }
 
-// ===== Shapes: ensure they DO NOT spawn under the sidebar =====
-function randomSpawnOutsideSidebar(size) {
-  // compute a random (x,y) outside the sidebar area
+// ===== Helpers =====
+function dist(x1, y1, x2, y2) {
+  return Math.hypot(x1 - x2, y1 - y2);
+}
+
+// Ensure shapes DO NOT spawn under the sidebar and spawn far from the mouse
+function randomSpawnOutsideSidebar(size, minDistFromMouse = 240) {
   const r = sidebarRect || leftSidebar.getBoundingClientRect();
-  // safe horizontal range is [r.right + margin, canvas.width - size]
   const margin = 10;
   const minX = Math.max(r.right + margin + size, size);
-  const maxX = Math.max(minX + 1, canvas.width - size); // guard
+  const maxX = Math.max(minX + 1, canvas.width - size);
+  const minY = size;
+  const maxY = canvas.height - size;
 
-  const x = Math.random() * (maxX - minX) + minX;
-  const y = Math.random() * (canvas.height - 2 * size) + size;
-  return { x, y };
+  let tries = 0;
+  while (tries < 800) {
+    const x = Math.random() * (maxX - minX) + minX;
+    const y = Math.random() * (maxY - minY) + minY;
+    if (dist(x, y, lastMouse.x, lastMouse.y) >= Math.max(minDistFromMouse, size * 4)) {
+      return { x, y };
+    }
+    tries++;
+  }
+  // Fallback: far right center
+  return { x: Math.min(canvas.width - size - 10, maxX), y: canvas.height * 0.5 };
 }
 
 function initShapes() {
@@ -120,13 +136,13 @@ function initShapes() {
   let counts = Math.random() < 0.5 ? { circle: 3, triangle: 2 } : { circle: 2, triangle: 3 };
   let attempts = 0;
 
-  while ((counts.circle > 0 || counts.triangle > 0) && attempts < 800) {
+  while ((counts.circle > 0 || counts.triangle > 0) && attempts < 1200) {
     const type = (counts.circle > 0 && counts.triangle > 0)
       ? (Math.random() < counts.circle / (counts.circle + counts.triangle) ? 'circle' : 'triangle')
       : (counts.circle > 0 ? 'circle' : 'triangle');
 
     const size = Math.random() * 30 + 20;
-    const { x, y } = randomSpawnOutsideSidebar(size);
+    const { x, y } = randomSpawnOutsideSidebar(size, 260);
     const newShape = new Shape(x, y, size, type);
 
     const overlapping = shapes.some(s => Math.hypot(newShape.x - s.x, newShape.y - s.y) < newShape.size + s.size + 10);
@@ -186,14 +202,28 @@ function handleGameOver() {
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   refreshSidebarRect(); // cache once per frame
-  shapes.forEach(s => { s.update(); s.draw(); });
-  checkCollision();
+
+  if (!isPaused) {
+    shapes.forEach(s => { s.update(); s.draw(); });
+    checkCollision();
+  } else {
+    // draw only
+    shapes.forEach(s => s.draw());
+    // show PAUSED overlay
+    ctx.fillStyle = '#03646A';
+    ctx.font = '42px Schoolbell, cursive';
+    const text = 'PAUSED';
+    const m = ctx.measureText(text);
+    ctx.fillText(text, (canvas.width - m.width) / 2, canvas.height * 0.45);
+  }
+
   if (!gameOver) requestAnimationFrame(animate);
 }
 
 // ===== Mouse events (canvas is pointer-events:none) =====
 window.addEventListener('mousemove', e => {
-  if (gameOver) return;
+  lastMouse = { x: e.clientX, y: e.clientY };
+  if (gameOver || isPaused) return;
   shapes.forEach(shape => shape.bounceFromMouse(e.clientX, e.clientY));
 });
 
@@ -201,23 +231,31 @@ window.addEventListener('mousemove', e => {
 startBtn.addEventListener('click', () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
+  isPaused = false;
   startBtn.style.display = 'none';
   restartBtn.style.display = 'none';
   refreshSidebarRect();
-  initShapes();
+  initShapes();          // spawns far from lastMouse and not under sidebar
   animate();
 });
 
 restartBtn.addEventListener('click', () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
+  isPaused = false;
   restartBtn.style.display = 'none';
   refreshSidebarRect();
-  initShapes();
+  initShapes();          // spawns far from lastMouse and not under sidebar
   animate();
 });
 
-// ===== Client-side leaderboard (localStorage) =====
+pauseBtn.addEventListener('click', () => {
+  if (gameOver) return;  // ignore when game over
+  isPaused = !isPaused;
+  pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+});
+
+// ===== Client-side leaderboard (localStorage) with rename support =====
 const LB_KEY = 'lbTop50';
 const NAME_KEY = 'username';
 
@@ -237,17 +275,74 @@ function renderLB() {
     leaderboardList.appendChild(li);
   });
 }
-function isNameTaken(name) {
+function findIndexByNameCI(lb, name) {
+  const n = name.toLowerCase();
+  return lb.findIndex(e => e.username.toLowerCase() === n);
+}
+function isNameTaken(name, exceptName = '') {
   const lb = loadLB();
-  return lb.some(e => e.username.toLowerCase() === name.toLowerCase());
+  const n = name.toLowerCase();
+  const except = exceptName.toLowerCase();
+  return lb.some(e => e.username.toLowerCase() === n && n !== except);
 }
 
-// live username validation
+// Live validation, but commit only on Enter/blur
 usernameInput.addEventListener('input', () => {
+  const currentSaved = (localStorage.getItem(NAME_KEY) || '').trim();
   const val = usernameInput.value.trim();
   if (!val) { usernameError.style.display = 'none'; return; }
-  usernameError.style.display = isNameTaken(val) ? 'block' : 'none';
+  usernameError.style.display = isNameTaken(val, currentSaved) ? 'block' : 'none';
 });
+
+function attemptRename() {
+  let oldName = (localStorage.getItem(NAME_KEY) || '').trim();
+  const newName = (usernameInput.value || '').trim();
+  if (!newName) { usernameError.style.display = 'none'; return; }
+  const same = oldName.toLowerCase() === newName.toLowerCase();
+  if (!same && isNameTaken(newName, oldName)) {
+    usernameError.style.display = 'block';
+    // keep input as-is so user can adjust
+    return;
+  }
+  usernameError.style.display = 'none';
+
+  // Update storage and leaderboard rows
+  const lb = loadLB();
+  const oldIdx = findIndexByNameCI(lb, oldName);
+  const newIdx = findIndexByNameCI(lb, newName);
+
+  if (!oldName) {
+    // No previous name saved, just set it
+    localStorage.setItem(NAME_KEY, newName);
+    renderLB();
+    return;
+  }
+
+  if (same) {
+    // nothing to do
+    return;
+  }
+
+  // Merge or rename
+  if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+    // Merge scores: keep max, remove duplicate
+    lb[newIdx].score = Math.max(lb[newIdx].score, lb[oldIdx].score);
+    lb.splice(oldIdx, 1);
+  } else if (oldIdx !== -1 && newIdx === -1) {
+    lb[oldIdx].username = newName;
+  }
+  // if oldIdx === -1 and newIdx exists, nothing to change in lb
+
+  localStorage.setItem(NAME_KEY, newName);
+  lb.sort((a,b)=>b.score - a.score);
+  saveLB(lb);
+  renderLB();
+}
+
+usernameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') attemptRename();
+});
+usernameInput.addEventListener('blur', attemptRename);
 
 function submitScore() {
   let name = (localStorage.getItem(NAME_KEY) || usernameInput.value || '').trim();
@@ -255,10 +350,12 @@ function submitScore() {
   localStorage.setItem(NAME_KEY, name);
 
   const lb = loadLB();
-  const existing = lb.find(e => e.username.toLowerCase() === name.toLowerCase());
-  if (existing) existing.score = Math.max(existing.score, score);
-  else lb.push({ username: name, score });
-
+  const idx = findIndexByNameCI(lb, name);
+  if (idx !== -1) {
+    lb[idx].score = Math.max(lb[idx].score, score);
+  } else {
+    lb.push({ username: name, score });
+  }
   lb.sort((a, b) => b.score - a.score);
   saveLB(lb);
   renderLB();
@@ -266,5 +363,5 @@ function submitScore() {
 
 // init LB and saved name
 renderLB();
-const storedName = localStorage.getItem(NAME_KEY);
+const storedName = (localStorage.getItem(NAME_KEY) || '').trim();
 if (storedName) usernameInput.value = storedName;
