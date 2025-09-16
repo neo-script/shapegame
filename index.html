@@ -16,12 +16,14 @@
   <button id="startBtn">Start Game</button>
   <button id="restartBtn">Retry</button>
 
-  <!-- LEFT SIDEBAR: Username (top) + Leaderboard (bottom, scrollable) -->
+  <!-- LEFT SIDEBAR: Username + Pause + Leaderboard -->
   <aside id="leftSidebar">
     <section id="userSection">
       <h3>Username</h3>
       <input type="text" id="usernameInput" placeholder="Enter a name">
+      <p id="usernameHint">Press Enter to save</p>
       <p id="usernameError">This username is taken</p>
+      <button id="pauseBtn" class="sideBtn">Pause</button>
     </section>
 
     <section id="leaderboardSection">
