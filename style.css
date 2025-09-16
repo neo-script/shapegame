@@ -1,34 +1,42 @@
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #DFEDEE; /* background visible everywhere */
+  font-family: 'Schoolbell', cursive;
+  background-color: #DFEDEE;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  color: #03646A;
 }
 
 canvas {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 0; /* behind buttons */
+  z-index: 0;
 }
 
 button {
   position: relative;
-  z-index: 2; /* on top of canvas */
+  z-index: 2;
   padding: 10px 20px;
-  font-size: 16px;
+  font-size: 20px;
   margin: 5px;
   cursor: pointer;
+  background-color: #C5DCDD;
+  border: 3px solid #689C9F;
+  border-radius: 8px;
+  font-family: 'Schoolbell', cursive;
+  color: #03646A;
 }
 
 #scoreDisplay {
   position: relative;
-  z-index: 2; /* on top */
-  font-size: 20px;
+  z-index: 2;
+  font-size: 28px;
   font-weight: bold;
   margin: 5px;
+  color: #03646A;
 }
+
