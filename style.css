@@ -34,25 +34,32 @@ canvas {
   z-index: 1;
 }
 
-button {
-  position: relative;
+#startBtn, #restartBtn {
+  position: absolute;
   z-index: 1;
-  padding: 10px 20px;
-  font-size: 18px;
-  margin: 10px auto;
-  display: block;
-  cursor: pointer;
+  padding: 12px 25px;
+  font-size: 20px;
   background: #C5DCDD;
   border: 2px solid #689C9F;
   border-radius: 10px;
   font-family: 'Schoolbell', cursive;
   color: #03646A;
+  cursor: pointer;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 140px;
 }
 
-#leftPanel, #rightPanel {
-  position: absolute;
+#restartBtn {
+  display: none;
+}
+
+#leftPanel {
+  left: 10px;
   top: 120px;
   width: 200px;
+  height: 400px;
+  overflow-y: auto;
   background: rgba(255,255,255,0.9);
   padding: 10px;
   border-radius: 12px;
@@ -60,12 +67,17 @@ button {
   z-index: 1;
 }
 
-#leftPanel {
-  left: 10px;
-}
-
 #rightPanel {
   right: 10px;
+  top: 120px;
+  width: 200px;
+  height: 150px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.9);
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 16px;
+  z-index: 1;
 }
 
 #usernameError {
@@ -74,5 +86,3 @@ button {
   display: none;
   margin-top: 5px;
 }
-
-
