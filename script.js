@@ -1,4 +1,4 @@
-// ===== Canvas & UI refs =====
+// ===== DOM refs =====
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('scoreDisplay');
@@ -7,6 +7,7 @@ const restartBtn = document.getElementById('restartBtn');
 const usernameInput = document.getElementById('usernameInput');
 const usernameError = document.getElementById('usernameError');
 const leaderboardList = document.getElementById('leaderboardList');
+const leftSidebar = document.getElementById('leftSidebar');
 
 // ===== Canvas sizing =====
 function resizeCanvas() {
@@ -22,6 +23,12 @@ let score = 0;
 let gameOver = false;
 
 const colors = ['#A7E6A1', '#A1D2E6', '#A1A1E6', '#E6A1BA', '#FFE69A', '#FFC69A'];
+
+// cache sidebar rect each frame
+let sidebarRect = null;
+function refreshSidebarRect() {
+  sidebarRect = leftSidebar.getBoundingClientRect();
+}
 
 class Shape {
   constructor(x, y, size, type) {
@@ -61,14 +68,17 @@ class Shape {
     if (this.y - this.size < 0) { this.y = this.size; this.speedY *= -1; }
     if (this.y + this.size > canvas.height) { this.y = canvas.height - this.size; this.speedY *= -1; }
 
-    // bounce off panels using cached rects
-    if (leftRect && this.x + this.size > leftRect.left && this.x - this.size < leftRect.right &&
-        this.y + this.size > leftRect.top  && this.y - this.size < leftRect.bottom) {
-      this.speedX *= -1; this.speedY *= -1;
-    }
-    if (rightRect && this.x + this.size > rightRect.left && this.x - this.size < rightRect.right &&
-        this.y + this.size > rightRect.top  && this.y - this.size < rightRect.bottom) {
-      this.speedX *= -1; this.speedY *= -1;
+    // bounce off sidebar (use cached rect)
+    // Translate rect (client coords) to canvas coords (same here since canvas is fullscreen at 0,0)
+    if (sidebarRect) {
+      const r = sidebarRect;
+      const inX = this.x + this.size > r.left && this.x - this.size < r.right;
+      const inY = this.y + this.size > r.top  && this.y - this.size < r.bottom;
+      if (inX && inY) {
+        // simple reflect outwards: push shape to the right of the sidebar and invert X
+        if (this.x < r.right + this.size) this.x = r.right + this.size;
+        this.speedX = Math.abs(this.speedX);
+      }
     }
   }
 
@@ -91,25 +101,34 @@ class Shape {
   }
 }
 
-// ===== Shapes =====
+// ===== Shapes: ensure they DO NOT spawn under the sidebar =====
+function randomSpawnOutsideSidebar(size) {
+  // compute a random (x,y) outside the sidebar area
+  const r = sidebarRect || leftSidebar.getBoundingClientRect();
+  // safe horizontal range is [r.right + margin, canvas.width - size]
+  const margin = 10;
+  const minX = Math.max(r.right + margin + size, size);
+  const maxX = Math.max(minX + 1, canvas.width - size); // guard
+
+  const x = Math.random() * (maxX - minX) + minX;
+  const y = Math.random() * (canvas.height - 2 * size) + size;
+  return { x, y };
+}
+
 function initShapes() {
   shapes = [];
   let counts = Math.random() < 0.5 ? { circle: 3, triangle: 2 } : { circle: 2, triangle: 3 };
   let attempts = 0;
 
-  function createShape(type) {
-    const size = Math.random() * 30 + 20;
-    const x = Math.random() * (canvas.width - 2 * size) + size;
-    const y = Math.random() * (canvas.height - 2 * size) + size;
-    return new Shape(x, y, size, type);
-  }
+  while ((counts.circle > 0 || counts.triangle > 0) && attempts < 800) {
+    const type = (counts.circle > 0 && counts.triangle > 0)
+      ? (Math.random() < counts.circle / (counts.circle + counts.triangle) ? 'circle' : 'triangle')
+      : (counts.circle > 0 ? 'circle' : 'triangle');
 
-  while ((counts.circle > 0 || counts.triangle > 0) && attempts < 500) {
-    let type = counts.circle > 0 ? 'circle' : 'triangle';
-    if (counts.circle > 0 && counts.triangle > 0) {
-      type = Math.random() < counts.circle / (counts.circle + counts.triangle) ? 'circle' : 'triangle';
-    }
-    const newShape = createShape(type);
+    const size = Math.random() * 30 + 20;
+    const { x, y } = randomSpawnOutsideSidebar(size);
+    const newShape = new Shape(x, y, size, type);
+
     const overlapping = shapes.some(s => Math.hypot(newShape.x - s.x, newShape.y - s.y) < newShape.size + s.size + 10);
     if (!overlapping) {
       shapes.push(newShape);
@@ -134,7 +153,7 @@ function checkCollision() {
           return;
         }
       } else if (s1.type === s2.type) {
-        // simple elastic-ish swap
+        // simple swap to simulate bounce
         const dx = s1.x - s2.x;
         const dy = s1.y - s2.y;
         const dist = Math.hypot(dx, dy);
@@ -157,30 +176,22 @@ function showGameOver() {
   ctx.fillText(text, (canvas.width - m.width) / 2, canvas.height / 2);
 }
 
-// handleGameOver is the central end hook (also used to submit score)
 function handleGameOver() {
   gameOver = true;
   submitScore();
   showGameOver();
 }
 
-// ===== Animation loop with panel-rect caching =====
-let leftRect = null;
-let rightRect = null;
-function refreshPanelRects() {
-  leftRect = document.getElementById('leftPanel').getBoundingClientRect();
-  rightRect = document.getElementById('rightPanel').getBoundingClientRect();
-}
-
+// ===== Animation loop =====
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  refreshPanelRects();
+  refreshSidebarRect(); // cache once per frame
   shapes.forEach(s => { s.update(); s.draw(); });
   checkCollision();
   if (!gameOver) requestAnimationFrame(animate);
 }
 
-// ===== Mouse (canvas has pointer-events:none, so listen on window) =====
+// ===== Mouse events (canvas is pointer-events:none) =====
 window.addEventListener('mousemove', e => {
   if (gameOver) return;
   shapes.forEach(shape => shape.bounceFromMouse(e.clientX, e.clientY));
@@ -192,6 +203,7 @@ startBtn.addEventListener('click', () => {
   gameOver = false;
   startBtn.style.display = 'none';
   restartBtn.style.display = 'none';
+  refreshSidebarRect();
   initShapes();
   animate();
 });
@@ -200,11 +212,12 @@ restartBtn.addEventListener('click', () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
   restartBtn.style.display = 'none';
+  refreshSidebarRect();
   initShapes();
   animate();
 });
 
-// ===== Client-side username & leaderboard (localStorage) =====
+// ===== Client-side leaderboard (localStorage) =====
 const LB_KEY = 'lbTop50';
 const NAME_KEY = 'username';
 
@@ -251,7 +264,7 @@ function submitScore() {
   renderLB();
 }
 
-// init LB and load saved name
+// init LB and saved name
 renderLB();
 const storedName = localStorage.getItem(NAME_KEY);
 if (storedName) usernameInput.value = storedName;
