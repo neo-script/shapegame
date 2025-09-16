@@ -75,6 +75,12 @@ canvas {
   padding: 10px;
 }
 
+#usernameRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 #leaderboardSection {
   background: rgba(255,255,255,0.95);
   border: 1px solid #C5DCDD;
@@ -105,6 +111,23 @@ canvas {
   font-size: 16px;
   padding: 6px 8px;
   box-sizing: border-box;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 18px;
+  background: #C5DCDD;
+  border: 2px solid #689C9F;
+  border-radius: 10px;
+  color: #03646A;
+  cursor: pointer;
 }
 
 #usernameHint {
