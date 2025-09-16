@@ -9,10 +9,9 @@ body {
 canvas {
   display: block;
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   z-index: 0;
-  pointer-events: none; /* allow clicks on inputs/buttons */
+  pointer-events: none; /* inputs/buttons are clickable */
 }
 
 #title {
@@ -51,52 +50,47 @@ canvas {
   top: 180px;
 }
 
-#restartBtn {
-  display: none;
+#restartBtn { display: none; }
+
+#leftPanel, #rightPanel {
+  position: absolute; /* critical for left/right offsets */
+  background: rgba(255,255,255,0.9);
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 16px;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 #leftPanel {
   left: 10px;
   top: 120px;
-  width: 200px;
-  height: 400px;
+  width: 220px;
+  max-height: 50vh;
   overflow-y: auto;
-  background: rgba(255,255,255,0.9);
-  padding: 10px;
-  border-radius: 12px;
-  font-size: 16px;
-  z-index: 10;
-  pointer-events: auto;
 }
 
 #rightPanel {
   right: 10px;
-  top: 300px; /* lowered so it doesn’t touch leaderboard */
-  width: 200px;
-  height: 150px;
+  top: 300px;
+  width: 220px;
+  height: 160px;
   overflow: hidden;
-  background: rgba(255,255,255,0.9);
-  padding: 10px;
-  border-radius: 12px;
-  font-size: 16px;
-  z-index: 10;
-  pointer-events: auto;
 }
 
 #usernameInput {
   width: 100%;
   font-family: 'Schoolbell', cursive;
   font-size: 16px;
-  padding: 5px;
+  padding: 6px 8px;
   box-sizing: border-box;
   z-index: 11;
   position: relative;
-  pointer-events: auto;
 }
 
 #usernameError {
   color: red;
   font-size: 14px;
   display: none;
-  margin-top: 5px;
+  margin-top: 6px;
 }
