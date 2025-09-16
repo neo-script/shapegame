@@ -1,42 +1,78 @@
 body {
   margin: 0;
-  font-family: 'Schoolbell', cursive;
   background-color: #DFEDEE;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+  font-family: 'Schoolbell', cursive;
   color: #03646A;
+  overflow: hidden;
 }
 
 canvas {
+  display: block;
   position: absolute;
   top: 0;
   left: 0;
   z-index: 0;
 }
 
+#title {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 36px;
+  position: absolute;
+  width: 100%;
+  top: 10px;
+  z-index: 1;
+}
+
+#scoreDisplay {
+  font-size: 28px;
+  font-weight: bold;
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
 button {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   padding: 10px 20px;
-  font-size: 20px;
-  margin: 5px;
+  font-size: 18px;
+  margin: 10px auto;
+  display: block;
   cursor: pointer;
-  background-color: #C5DCDD;
-  border: 3px solid #689C9F;
-  border-radius: 8px;
+  background: #C5DCDD;
+  border: 2px solid #689C9F;
+  border-radius: 10px;
   font-family: 'Schoolbell', cursive;
   color: #03646A;
 }
 
-#scoreDisplay {
-  position: relative;
-  z-index: 2;
-  font-size: 28px;
-  font-weight: bold;
-  margin: 5px;
-  color: #03646A;
+#leftPanel, #rightPanel {
+  position: absolute;
+  top: 120px;
+  width: 200px;
+  background: rgba(255,255,255,0.9);
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 16px;
+  z-index: 1;
 }
+
+#leftPanel {
+  left: 10px;
+}
+
+#rightPanel {
+  right: 10px;
+}
+
+#usernameError {
+  color: red;
+  font-size: 14px;
+  display: none;
+  margin-top: 5px;
+}
+
 
