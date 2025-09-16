@@ -9,6 +9,7 @@ const usernameError = document.getElementById('usernameError');
 const leaderboardList = document.getElementById('leaderboardList');
 const leftSidebar = document.getElementById('leftSidebar');
 const pauseBtn = document.getElementById('pauseBtn');
+const saveNameBtn = document.getElementById('saveNameBtn');
 
 // ===== Canvas sizing =====
 function resizeCanvas() {
@@ -221,6 +222,7 @@ function animate() {
 }
 
 // ===== Mouse events (canvas is pointer-events:none) =====
+let composing = false; // IME composition guard for Enter key
 window.addEventListener('mousemove', e => {
   lastMouse = { x: e.clientX, y: e.clientY };
   if (gameOver || isPaused) return;
@@ -286,7 +288,7 @@ function isNameTaken(name, exceptName = '') {
   return lb.some(e => e.username.toLowerCase() === n && n !== except);
 }
 
-// Live validation, but commit only on Enter/blur
+// Live validation
 usernameInput.addEventListener('input', () => {
   const currentSaved = (localStorage.getItem(NAME_KEY) || '').trim();
   const val = usernameInput.value.trim();
@@ -294,19 +296,31 @@ usernameInput.addEventListener('input', () => {
   usernameError.style.display = isNameTaken(val, currentSaved) ? 'block' : 'none';
 });
 
+// IME-safe Enter handling
+usernameInput.addEventListener('compositionstart', () => composing = true);
+usernameInput.addEventListener('compositionend', () => composing = false);
+usernameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !composing) attemptRename();
+});
+
+// Save button
+saveNameBtn.addEventListener('click', () => attemptRename());
+
+// Also try on change (when input loses focus after edits)
+usernameInput.addEventListener('change', () => attemptRename());
+
 function attemptRename() {
   let oldName = (localStorage.getItem(NAME_KEY) || '').trim();
   const newName = (usernameInput.value || '').trim();
   if (!newName) { usernameError.style.display = 'none'; return; }
+
   const same = oldName.toLowerCase() === newName.toLowerCase();
   if (!same && isNameTaken(newName, oldName)) {
     usernameError.style.display = 'block';
-    // keep input as-is so user can adjust
     return;
   }
   usernameError.style.display = 'none';
 
-  // Update storage and leaderboard rows
   const lb = loadLB();
   const oldIdx = findIndexByNameCI(lb, oldName);
   const newIdx = findIndexByNameCI(lb, newName);
@@ -318,10 +332,7 @@ function attemptRename() {
     return;
   }
 
-  if (same) {
-    // nothing to do
-    return;
-  }
+  if (same) return;
 
   // Merge or rename
   if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
@@ -338,11 +349,6 @@ function attemptRename() {
   saveLB(lb);
   renderLB();
 }
-
-usernameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') attemptRename();
-});
-usernameInput.addEventListener('blur', attemptRename);
 
 function submitScore() {
   let name = (localStorage.getItem(NAME_KEY) || usernameInput.value || '').trim();
