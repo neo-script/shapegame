@@ -16,18 +16,19 @@
   <button id="startBtn">Start Game</button>
   <button id="restartBtn">Retry</button>
 
-  <!-- Left: Leaderboard -->
-  <div id="leftPanel">
-    <h3>Leaderboard</h3>
-    <ul id="leaderboardList"></ul>
-  </div>
+  <!-- LEFT SIDEBAR: Username (top) + Leaderboard (bottom, scrollable) -->
+  <aside id="leftSidebar">
+    <section id="userSection">
+      <h3>Username</h3>
+      <input type="text" id="usernameInput" placeholder="Enter a name">
+      <p id="usernameError">This username is taken</p>
+    </section>
 
-  <!-- Right: Username -->
-  <div id="rightPanel">
-    <h3>Username</h3>
-    <input type="text" id="usernameInput" placeholder="Enter a name">
-    <p id="usernameError">This username is taken</p>
-  </div>
+    <section id="leaderboardSection">
+      <h3>Leaderboard</h3>
+      <ul id="leaderboardList"></ul>
+    </section>
+  </aside>
 
   <script src="script.js"></script>
 </body>
