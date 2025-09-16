@@ -20,9 +20,15 @@
   <aside id="leftSidebar">
     <section id="userSection">
       <h3>Username</h3>
-      <input type="text" id="usernameInput" placeholder="Enter a name">
-      <p id="usernameHint">Press Enter to save</p>
+
+      <div id="usernameRow">
+        <input type="text" id="usernameInput" placeholder="Enter a name" aria-label="Username">
+        <button id="saveNameBtn" class="iconBtn" title="Save username" aria-label="Save username">✓</button>
+      </div>
+
+      <p id="usernameHint">Press <b>Enter</b> or click <b>✓</b> to save</p>
       <p id="usernameError">This username is taken</p>
+
       <button id="pauseBtn" class="sideBtn">Pause</button>
     </section>
 
