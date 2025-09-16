@@ -171,4 +171,10 @@ startBtn.addEventListener('click', () => {
 
 restartBtn.addEventListener('click', () => {
   score = 0;
-  scoreDisplay.textContent
+  scoreDisplay.textContent = score;
+  gameOver = false;
+  restartBtn.style.display = 'none';
+  initShapes();
+  animate();
+});
+
