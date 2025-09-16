@@ -18,7 +18,7 @@ class Shape {
     this.x = x;
     this.y = y;
     this.size = size;
-    this.type = type;
+    this.type = type; // 'circle' or 'square'
     this.speedX = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
     this.speedY = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
     this.color = colors[Math.floor(Math.random() * colors.length)];
@@ -65,7 +65,7 @@ class Shape {
   }
 }
 
-// --- Init shapes 2:3 ratio ---
+// --- Initialize shapes 2:3 ratio ---
 function initShapes() {
   shapes = [];
   let counts = Math.random() < 0.5 ? {circle:3, square:2} : {circle:2, square:3};
@@ -177,23 +177,28 @@ function initUsername(){
   document.getElementById('usernameInput').value=storedUsername;
 }
 
-document.getElementById('usernameInput').addEventListener('change', async e=>{
-  const newName=e.target.value.trim();
-  if(!newName) return;
+// --- FIXED: only check username on blur ---
+const usernameInput = document.getElementById('usernameInput');
+usernameInput.addEventListener('blur', async () => {
+  const newName = usernameInput.value.trim();
+  if (!newName) return;
 
-  const res = await fetch('/api/check-username?name='+encodeURIComponent(newName));
+  const oldName = localStorage.getItem('username');
+  if (newName === oldName) return;
+
+  const res = await fetch('/api/check-username?name=' + encodeURIComponent(newName));
   const data = await res.json();
-  if(data.taken){
-    document.getElementById('usernameError').style.display='block';
-  }else{
-    document.getElementById('usernameError').style.display='none';
-    const oldName = localStorage.getItem('username');
+  if (data.taken) {
+    document.getElementById('usernameError').style.display = 'block';
+    usernameInput.value = oldName; // revert
+  } else {
+    document.getElementById('usernameError').style.display = 'none';
     localStorage.setItem('username', newName);
 
-    await fetch('/api/update-username',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({old:oldName,new:newName})
+    await fetch('/api/update-username', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({old:oldName,new:newName})
     });
     loadLeaderboard();
   }
@@ -232,6 +237,6 @@ function handleGameOver(){
   showGameOver();
 }
 
+// --- Initialize ---
 initUsername();
 loadLeaderboard();
-
