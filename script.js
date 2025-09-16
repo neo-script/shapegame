@@ -19,9 +19,10 @@ class Shape {
     this.y = y;
     this.size = size;
     this.type = type; // 'circle' or 'square'
-    this.speedX = Math.random() * 3 + 1;
-    this.speedY = Math.random() * 3 + 1;
+    this.speedX = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
+    this.speedY = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
     this.color = colors[Math.floor(Math.random() * colors.length)];
+    this.lastBonk = 0; // cooldown timer
   }
 
   draw() {
@@ -63,61 +64,65 @@ class Shape {
     const dy = this.y - my;
     const distance = Math.hypot(dx, dy);
     if(distance < this.size + 10) {
-      const angle = Math.atan2(dy, dx);
-      const speed = 5;
-      this.speedX = Math.cos(angle) * speed;
-      this.speedY = Math.sin(angle) * speed;
-
-      // Prevent shape from being pushed outside
-      this.x = Math.min(Math.max(this.size, this.x), canvas.width - this.size);
-      this.y = Math.min(Math.max(this.size, this.y), canvas.height - this.size);
-
-      score++;
-      scoreDisplay.textContent = score;
+      const now = Date.now();
+      if(now - this.lastBonk > 300) { // 300ms cooldown
+        const angle = Math.atan2(dy, dx);
+        const speed = 5;
+        this.speedX = Math.cos(angle) * speed;
+        this.speedY = Math.sin(angle) * speed;
+        this.x = Math.min(Math.max(this.size, this.x), canvas.width - this.size);
+        this.y = Math.min(Math.max(this.size, this.y), canvas.height - this.size);
+        score++;
+        scoreDisplay.textContent = score;
+        this.lastBonk = now;
+      }
     }
   }
 }
 
-function initShapes(num = 5) {
+// --- Shape Init with 2:3 ratio ---
+function initShapes() {
   shapes = [];
+  let counts = Math.random() < 0.5 ? {circle: 3, square: 2} : {circle: 2, square: 3};
   let attempts = 0;
-  while(shapes.length < num && attempts < 200) {
+
+  function createShape(type) {
     const size = Math.random() * 30 + 20;
     const x = Math.random() * (canvas.width - 2*size) + size;
     const y = Math.random() * (canvas.height - 2*size) + size;
-    const type = Math.random() < 0.5 ? 'circle' : 'square';
-    const newShape = new Shape(x, y, size, type);
+    return new Shape(x, y, size, type);
+  }
+
+  while((counts.circle > 0 || counts.square > 0) && attempts < 500) {
+    let type = counts.circle > 0 ? 'circle' : 'square';
+    if(counts.circle > 0 && counts.square > 0) {
+      type = Math.random() < counts.circle/(counts.circle+counts.square) ? 'circle' : 'square';
+    }
+    const newShape = createShape(type);
 
     let overlapping = false;
     for(let s of shapes) {
-      let collided = false;
-      if(newShape.type === 'circle' && s.type === 'circle') {
-        collided = Math.hypot(newShape.x - s.x, newShape.y - s.y) < newShape.size + s.size;
-      } else if(newShape.type === 'square' && s.type === 'square') {
-        collided = Math.abs(newShape.x - s.x) < newShape.size + s.size &&
-                   Math.abs(newShape.y - s.y) < newShape.size + s.size;
-      } else {
-        let circle = newShape.type === 'circle' ? newShape : s;
-        let square = newShape.type === 'square' ? newShape : s;
-        let closestX = Math.max(square.x - square.size, Math.min(circle.x, square.x + square.size));
-        let closestY = Math.max(square.y - square.size, Math.min(circle.y, square.y + square.size));
-        let dx = circle.x - closestX;
-        let dy = circle.y - closestY;
-        collided = Math.hypot(dx, dy) < circle.size;
-      }
-      if(collided) overlapping = true;
+      let dx = newShape.x - s.x;
+      let dy = newShape.y - s.y;
+      if(Math.hypot(dx, dy) < newShape.size + s.size + 10) overlapping = true;
     }
-    if(!overlapping) shapes.push(newShape);
+
+    if(!overlapping) {
+      shapes.push(newShape);
+      counts[type]--;
+    }
     attempts++;
   }
 }
 
+// --- Shape Collision Handling ---
 function checkCollision() {
   for(let i=0; i<shapes.length; i++) {
     for(let j=i+1; j<shapes.length; j++) {
       const s1 = shapes[i];
       const s2 = shapes[j];
-      // Only circle-square collisions trigger game over
+
+      // Circle-square collision -> game over
       if((s1.type === 'circle' && s2.type === 'square') || (s1.type === 'square' && s2.type === 'circle')) {
         let circle = s1.type === 'circle' ? s1 : s2;
         let square = s1.type === 'square' ? s1 : s2;
@@ -129,6 +134,21 @@ function checkCollision() {
           gameOver = true;
           showGameOver();
           return;
+        }
+      } 
+      // Circle-circle or square-square collision -> bounce
+      else if(s1.type === s2.type) {
+        let dx = s1.x - s2.x;
+        let dy = s1.y - s2.y;
+        let dist = Math.hypot(dx, dy);
+        if(dist < s1.size + s2.size) {
+          // Simple velocity swap (elastic collision)
+          let tempX = s1.speedX;
+          let tempY = s1.speedY;
+          s1.speedX = s2.speedX;
+          s1.speedY = s2.speedY;
+          s2.speedX = tempX;
+          s2.speedY = tempY;
         }
       }
     }
