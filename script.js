@@ -40,10 +40,45 @@ class Shape {
     this.x += this.speedX;
     this.y += this.speedY;
 
+    // Canvas edges
     if (this.x - this.size < 0) { this.x = this.size; this.speedX *= -1; }
     if (this.x + this.size > canvas.width) { this.x = canvas.width - this.size; this.speedX *= -1; }
     if (this.y - this.size < 0) { this.y = this.size; this.speedY *= -1; }
     if (this.y + this.size > canvas.height) { this.y = canvas.height - this.size; this.speedY *= -1; }
+
+    // Prevent shapes from entering panels
+    const leftPanel = document.getElementById('leftPanel').getBoundingClientRect();
+    const rightPanel = document.getElementById('rightPanel').getBoundingClientRect();
+
+    // Left panel
+    if (
+      this.x + this.size > leftPanel.left &&
+      this.x - this.size < leftPanel.right &&
+      this.y + this.size > leftPanel.top &&
+      this.y - this.size < leftPanel.bottom
+    ) {
+      this.speedX *= -1;
+      this.speedY *= -1;
+      if (this.x < leftPanel.left) this.x = leftPanel.left - this.size;
+      if (this.x > leftPanel.right) this.x = leftPanel.right + this.size;
+      if (this.y < leftPanel.top) this.y = leftPanel.top - this.size;
+      if (this.y > leftPanel.bottom) this.y = leftPanel.bottom + this.size;
+    }
+
+    // Right panel
+    if (
+      this.x + this.size > rightPanel.left &&
+      this.x - this.size < rightPanel.right &&
+      this.y + this.size > rightPanel.top &&
+      this.y - this.size < rightPanel.bottom
+    ) {
+      this.speedX *= -1;
+      this.speedY *= -1;
+      if (this.x < rightPanel.left) this.x = rightPanel.left - this.size;
+      if (this.x > rightPanel.right) this.x = rightPanel.right + this.size;
+      if (this.y < rightPanel.top) this.y = rightPanel.top - this.size;
+      if (this.y > rightPanel.bottom) this.y = rightPanel.bottom + this.size;
+    }
   }
 
   bounceFromMouse(mx, my) {
@@ -177,7 +212,7 @@ function initUsername(){
   document.getElementById('usernameInput').value=storedUsername;
 }
 
-// --- FIXED: only check username on blur ---
+// Check username only on blur
 const usernameInput = document.getElementById('usernameInput');
 usernameInput.addEventListener('blur', async () => {
   const newName = usernameInput.value.trim();
@@ -190,7 +225,7 @@ usernameInput.addEventListener('blur', async () => {
   const data = await res.json();
   if (data.taken) {
     document.getElementById('usernameError').style.display = 'block';
-    usernameInput.value = oldName; // revert
+    usernameInput.value = oldName;
   } else {
     document.getElementById('usernameError').style.display = 'none';
     localStorage.setItem('username', newName);
@@ -240,3 +275,4 @@ function handleGameOver(){
 // --- Initialize ---
 initUsername();
 loadLeaderboard();
+
