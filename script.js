@@ -18,7 +18,7 @@ class Shape {
     this.x = x;
     this.y = y;
     this.size = size;
-    this.type = type; // 'circle' or 'square'
+    this.type = type;
     this.speedX = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
     this.speedY = (Math.random() * 3 + 1) * (Math.random() < 0.5 ? 1 : -1);
     this.color = colors[Math.floor(Math.random() * colors.length)];
@@ -100,7 +100,7 @@ class Shape {
   }
 }
 
-// --- Initialize shapes 2:3 ratio ---
+// Initialize shapes 2:3 ratio
 function initShapes() {
   shapes = [];
   let counts = Math.random() < 0.5 ? {circle:3, square:2} : {circle:2, square:3};
@@ -132,7 +132,7 @@ function initShapes() {
   }
 }
 
-// --- Collision ---
+// Collision detection
 function checkCollision(){
   for(let i=0;i<shapes.length;i++){
     for(let j=i+1;j<shapes.length;j++){
@@ -184,7 +184,7 @@ canvas.addEventListener('mousemove', e=>{
   shapes.forEach(shape=>shape.bounceFromMouse(e.clientX,e.clientY));
 });
 
-// --- Buttons ---
+// Buttons
 startBtn.addEventListener('click', ()=>{
   score=0;scoreDisplay.textContent=score;
   gameOver=false;
@@ -202,7 +202,7 @@ restartBtn.addEventListener('click', ()=>{
   animate();
 });
 
-// --- Username + leaderboard ---
+// Username + leaderboard
 function initUsername(){
   let storedUsername=localStorage.getItem('username');
   if(!storedUsername){
@@ -212,7 +212,7 @@ function initUsername(){
   document.getElementById('usernameInput').value=storedUsername;
 }
 
-// Check username only on blur
+// Check username on blur
 const usernameInput = document.getElementById('usernameInput');
 usernameInput.addEventListener('blur', async () => {
   const newName = usernameInput.value.trim();
@@ -272,7 +272,7 @@ function handleGameOver(){
   showGameOver();
 }
 
-// --- Initialize ---
+// Initialize
 initUsername();
 loadLeaderboard();
 
