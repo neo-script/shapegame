@@ -41,6 +41,43 @@ function refreshSidebarRect() {
   sidebarRect = leftSidebar.getBoundingClientRect();
 }
 
+// ======== API helpers (Next.js / same origin) ========
+const API = {
+  async getLeaderboard() {
+    const res = await fetch('/api/leaderboard', { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  },
+  async postScore(username, score) {
+    await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, score })
+    });
+  },
+  async checkUsername(name) {
+    const res = await fetch(`/api/check-username?name=${encodeURIComponent(name)}`);
+    if (!res.ok) return { taken: false };
+    return res.json(); // { taken: boolean }
+  },
+  async registerUsername(name) {
+    const res = await fetch('/api/register-username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    return res.json(); // { success: bool, reason?: 'taken' }
+  },
+  async updateUsername(oldName, newName) {
+    const res = await fetch('/api/update-username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old: oldName, new: newName })
+    });
+    return res.json(); // { success: bool }
+  }
+};
+
 // ===== Geometry helpers =====
 function dist(x1, y1, x2, y2) {
   return Math.hypot(x1 - x2, y1 - y2);
@@ -68,12 +105,10 @@ function distPointToSegment(px, py, x1, y1, x2, y2) {
   const projy = y1 + t * vy;
   return Math.hypot(px - projx, py - projy);
 }
-/** Returns the minimal distance from circle center to the triangle (0 if inside). */
 function closestDistanceCenterToTriangle(circle, tri) {
-  // Triangle vertices (matching draw): apex up, base wide
-  const A = { x: tri.x,            y: tri.y - tri.size }; // top
-  const B = { x: tri.x - tri.size, y: tri.y + tri.size }; // bottom-left
-  const C = { x: tri.x + tri.size, y: tri.y + tri.size }; // bottom-right
+  const A = { x: tri.x,            y: tri.y - tri.size };
+  const B = { x: tri.x - tri.size, y: tri.y + tri.size };
+  const C = { x: tri.x + tri.size, y: tri.y + tri.size };
   const P = { x: circle.x, y: circle.y };
 
   if (pointInTriangle(P, A, B, C)) return 0;
@@ -83,11 +118,10 @@ function closestDistanceCenterToTriangle(circle, tri) {
   const dCA = distPointToSegment(P.x, P.y, C.x, C.y, A.x, A.y);
   return Math.min(dAB, dBC, dCA);
 }
-/** Conservative hit test: only true if the *disk* intersects triangle with a visible overlap. */
 function circleTriangleOverlap(circle, tri) {
-  const r = circle.size;                       // actual radius used for drawing
+  const r = circle.size;
   const d = closestDistanceCenterToTriangle(circle, tri);
-  return d <= (r - CONTACT_SLACK);             // require a little extra closeness
+  return d <= (r - CONTACT_SLACK);
 }
 
 // ===== Shape class =====
@@ -109,7 +143,7 @@ class Shape {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
-    } else { // triangle
+    } else {
       ctx.beginPath();
       ctx.moveTo(this.x, this.y - this.size);
       ctx.lineTo(this.x - this.size, this.y + this.size);
@@ -123,20 +157,18 @@ class Shape {
     this.x += this.speedX;
     this.y += this.speedY;
 
-    // canvas edges
     if (this.x - this.size < 0) { this.x = this.size; this.speedX *= -1; }
     if (this.x + this.size > canvas.width) { this.x = canvas.width - this.size; this.speedX *= -1; }
     if (this.y - this.size < 0) { this.y = this.size; this.speedY *= -1; }
     if (this.y + this.size > canvas.height) { this.y = canvas.height - this.size; this.speedY *= -1; }
 
-    // bounce off sidebar (use cached rect)
     if (sidebarRect) {
       const r = sidebarRect;
       const inX = this.x + this.size > r.left && this.x - this.size < r.right;
       const inY = this.y + this.size > r.top  && this.y - this.size < r.bottom;
       if (inX && inY) {
         if (this.x < r.right + this.size) this.x = r.right + this.size;
-        this.speedX = Math.abs(this.speedX); // push to the right
+        this.speedX = Math.abs(this.speedX);
       }
     }
   }
@@ -145,7 +177,7 @@ class Shape {
     const dx = this.x - mx;
     const dy = this.y - my;
     const distance = Math.hypot(dx, dy);
-    if (distance < this.size + 15) { // bigger hitbox
+    if (distance < this.size + 15) {
       const now = Date.now();
       if (now - this.lastBonk > 200) {
         const angle = Math.atan2(dy, dx);
@@ -178,7 +210,6 @@ function randomSpawnOutsideSidebar(size, minDistFromMouse = 240) {
     }
     tries++;
   }
-  // Fallback: far right center
   return { x: Math.min(canvas.width - size - 10, maxX), y: canvas.height * 0.5 };
 }
 
@@ -221,11 +252,10 @@ function checkCollision() {
         const tri    = s1.type === 'triangle' ? s1 : s2;
 
         if (circleTriangleOverlap(circle, tri)) {
-          anyContact = true; // don't end yet; confirm over multiple frames
+          anyContact = true; // confirm over multiple frames
         }
 
       } else if (s1.type === s2.type) {
-        // simple swap to simulate bounce
         const dx = s1.x - s2.x;
         const dy = s1.y - s2.y;
         const d  = Math.hypot(dx, dy);
@@ -238,7 +268,6 @@ function checkCollision() {
     }
   }
 
-  // require contact to persist for N frames to avoid “near miss” false positives
   if (anyContact) {
     contactStreak += 1;
     if (contactStreak >= HIT_CONFIRM_FRAMES) {
@@ -259,21 +288,20 @@ function showGameOver() {
   ctx.fillText(text, (canvas.width - m.width) / 2, canvas.height / 2);
 }
 
-function handleGameOver() {
+async function handleGameOver() {
   gameOver = true;
-  submitScore();
+  await submitScore(); // send to server first
   showGameOver();
 }
 
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  refreshSidebarRect(); // cache once per frame
+  refreshSidebarRect();
 
   if (!isPaused) {
     shapes.forEach(s => { s.update(); s.draw(); });
     if (!gameOver) checkCollision();
   } else {
-    // draw only + PAUSED overlay
     shapes.forEach(s => s.draw());
     ctx.fillStyle = '#03646A';
     ctx.font = '42px Schoolbell, cursive';
@@ -286,7 +314,7 @@ function animate() {
 }
 
 // ===== Mouse events (canvas is pointer-events:none) =====
-let composing = false; // IME composition guard for Enter key
+let composing = false;
 window.addEventListener('mousemove', e => {
   lastMouse = { x: e.clientX, y: e.clientY };
   if (gameOver || isPaused) return;
@@ -294,7 +322,7 @@ window.addEventListener('mousemove', e => {
 });
 
 // ===== Buttons =====
-startBtn.addEventListener('click', () => {
+startBtn.addEventListener('click', async () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
   isPaused = false;
@@ -302,40 +330,35 @@ startBtn.addEventListener('click', () => {
   startBtn.style.display = 'none';
   restartBtn.style.display = 'none';
   refreshSidebarRect();
-  initShapes();          // spawns far from lastMouse and not under sidebar
+  await ensureUsernameRegistered();
+  await renderLB(); // show latest global board
+  initShapes();
   animate();
 });
 
-restartBtn.addEventListener('click', () => {
+restartBtn.addEventListener('click', async () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
   isPaused = false;
   contactStreak = 0;
   restartBtn.style.display = 'none';
   refreshSidebarRect();
-  initShapes();          // spawns far from lastMouse and not under sidebar
+  await renderLB();
+  initShapes();
   animate();
 });
 
 pauseBtn.addEventListener('click', () => {
-  if (gameOver) return;  // ignore when game over
+  if (gameOver) return;
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
 });
 
-// ===== Client-side leaderboard (localStorage) with rename support =====
-const LB_KEY = 'lbTop50';
-const NAME_KEY = 'username';
+// ===== Username & Leaderboard (server-backed) =====
+const NAME_KEY = 'username'; // remember your chosen name locally for convenience
 
-function loadLB() {
-  try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; }
-  catch { return []; }
-}
-function saveLB(arr) {
-  localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0,50)));
-}
-function renderLB() {
-  const lb = loadLB();
+async function renderLB() {
+  const lb = await API.getLeaderboard();
   leaderboardList.innerHTML = '';
   lb.forEach(({ username, score }, i) => {
     const li = document.createElement('li');
@@ -343,97 +366,102 @@ function renderLB() {
     leaderboardList.appendChild(li);
   });
 }
-function findIndexByNameCI(lb, name) {
-  const n = name.toLowerCase();
-  return lb.findIndex(e => e.username.toLowerCase() === n);
-}
-function isNameTaken(name, exceptName = '') {
-  const lb = loadLB();
-  const n = name.toLowerCase();
-  const except = exceptName.toLowerCase();
-  return lb.some(e => e.username.toLowerCase() === n && n !== except);
+
+async function isNameTakenServer(name, exceptName = '') {
+  if (!name) return false;
+  // If exceptName is same (case-insensitive), allow it
+  if (name.toLowerCase() === (exceptName || '').toLowerCase()) return false;
+  const { taken } = await API.checkUsername(name);
+  return !!taken;
 }
 
 // Live validation
-usernameInput.addEventListener('input', () => {
+usernameInput.addEventListener('input', async () => {
   const currentSaved = (localStorage.getItem(NAME_KEY) || '').trim();
   const val = usernameInput.value.trim();
   if (!val) { usernameError.style.display = 'none'; return; }
-  usernameError.style.display = isNameTaken(val, currentSaved) ? 'block' : 'none';
+  usernameError.style.display = (await isNameTakenServer(val, currentSaved)) ? 'block' : 'none';
 });
 
 // IME-safe Enter handling
 usernameInput.addEventListener('compositionstart', () => composing = true);
 usernameInput.addEventListener('compositionend', () => composing = false);
-usernameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !composing) attemptRename();
+usernameInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && !composing) await attemptRename();
 });
 
 // Save button
-saveNameBtn.addEventListener('click', () => attemptRename());
+saveNameBtn.addEventListener('click', async () => { await attemptRename(); });
 
 // Also try on change (when input loses focus after edits)
-usernameInput.addEventListener('change', () => attemptRename());
+usernameInput.addEventListener('change', async () => { await attemptRename(); });
 
-function attemptRename() {
+async function ensureUsernameRegistered() {
+  // If user already has a saved name locally, try to register it (ignore if taken)
+  let name = (localStorage.getItem(NAME_KEY) || usernameInput.value || '').trim();
+  if (!name) {
+    name = 'Player' + Math.floor(Math.random() * 1000);
+    usernameInput.value = name;
+  }
+  const res = await API.registerUsername(name);
+  if (res && res.success) {
+    localStorage.setItem(NAME_KEY, name);
+  } else if (res && res.reason === 'taken') {
+    // If taken, do nothing; user can rename
+  }
+}
+
+async function attemptRename() {
   let oldName = (localStorage.getItem(NAME_KEY) || '').trim();
   const newName = (usernameInput.value || '').trim();
   if (!newName) { usernameError.style.display = 'none'; return; }
 
   const same = oldName.toLowerCase() === newName.toLowerCase();
-  if (!same && isNameTaken(newName, oldName)) {
+  if (!same && await isNameTakenServer(newName, oldName)) {
     usernameError.style.display = 'block';
     return;
   }
   usernameError.style.display = 'none';
 
-  const lb = loadLB();
-  const oldIdx = findIndexByNameCI(lb, oldName);
-  const newIdx = findIndexByNameCI(lb, newName);
-
+  // If there was no old name stored, just register the new one
   if (!oldName) {
-    // No previous name saved, just set it
-    localStorage.setItem(NAME_KEY, newName);
-    renderLB();
+    const r = await API.registerUsername(newName);
+    if (r.success) {
+      localStorage.setItem(NAME_KEY, newName);
+      await renderLB();
+    }
     return;
   }
 
   if (same) return;
 
-  // Merge or rename
-  if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
-    // Merge scores: keep max, remove duplicate
-    lb[newIdx].score = Math.max(lb[newIdx].score, lb[oldIdx].score);
-    lb.splice(oldIdx, 1);
-  } else if (oldIdx !== -1 && newIdx === -1) {
-    lb[oldIdx].username = newName;
+  // First make sure the new name is reserved, then update any leaderboard entries
+  const r = await API.registerUsername(newName);
+  if (r.success || r.reason === undefined) {
+    await API.updateUsername(oldName, newName);
+    localStorage.setItem(NAME_KEY, newName);
+    await renderLB();
+  } else if (r.reason === 'taken') {
+    // SKIBIDI
+    usernameError.style.display = 'block';
   }
-  // if oldIdx === -1 and newIdx exists, nothing to change in lb
-
-  localStorage.setItem(NAME_KEY, newName);
-  lb.sort((a,b)=>b.score - a.score);
-  saveLB(lb);
-  renderLB();
 }
 
-function submitScore() {
+async function submitScore() {
   let name = (localStorage.getItem(NAME_KEY) || usernameInput.value || '').trim();
-  if (!name) name = 'Player' + Math.floor(Math.random() * 1000);
-  localStorage.setItem(NAME_KEY, name);
-
-  const lb = loadLB();
-  const idx = findIndexByNameCI(lb, name);
-  if (idx !== -1) {
-    lb[idx].score = Math.max(lb[idx].score, score);
-  } else {
-    lb.push({ username: name, score });
+  if (!name) {
+    name = 'Player' + Math.floor(Math.random() * 1000);
+    usernameInput.value = name;
   }
-  lb.sort((a, b) => b.score - a.score);
-  saveLB(lb);
-  renderLB();
+  // do you have rizz?
+  await API.registerUsername(name);
+  await API.postScore(name, score);
+  await renderLB();
 }
 
-// init LB and saved name
-renderLB();
-const storedName = (localStorage.getItem(NAME_KEY) || '').trim();
-if (storedName) usernameInput.value = storedName;
+// pls let me go homeeee
+(async function initUI() {
+  const storedName = (localStorage.getItem(NAME_KEY) || '').trim();
+  if (storedName) usernameInput.value = storedName;
+  await renderLB();
+})();
