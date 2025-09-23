@@ -25,6 +25,11 @@ let score = 0;
 let gameOver = false;
 let isPaused = false;
 
+// anti “air collision”
+let contactStreak = 0;
+const HIT_CONFIRM_FRAMES = 2;   // require overlap for N consecutive frames
+const CONTACT_SLACK = 3.0;      // additional gap (px) required before counting as a hit
+
 // Track mouse to spawn shapes far away from it
 let lastMouse = { x: window.innerWidth * 0.7, y: window.innerHeight * 0.5 };
 
@@ -41,7 +46,7 @@ function dist(x1, y1, x2, y2) {
   return Math.hypot(x1 - x2, y1 - y2);
 }
 
-// --- precise geometry helpers for circle-vs-triangle ---
+// --- precise geometry helpers for circle–triangle ---
 function _sign(p1, p2, p3) {
   return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
@@ -63,24 +68,26 @@ function distPointToSegment(px, py, x1, y1, x2, y2) {
   const projy = y1 + t * vy;
   return Math.hypot(px - projx, py - projy);
 }
-function circleTriangleCollide(circle, tri) {
+/** Returns the minimal distance from circle center to the triangle (0 if inside). */
+function closestDistanceCenterToTriangle(circle, tri) {
   // Triangle vertices (matching draw): apex up, base wide
   const A = { x: tri.x,            y: tri.y - tri.size }; // top
   const B = { x: tri.x - tri.size, y: tri.y + tri.size }; // bottom-left
   const C = { x: tri.x + tri.size, y: tri.y + tri.size }; // bottom-right
-
   const P = { x: circle.x, y: circle.y };
-  // small epsilon so it doesn't "early trigger" visually
-  const r = Math.max(0, circle.size - 1.5);
 
-  // Case 1: center inside triangle
-  if (pointInTriangle(P, A, B, C)) return true;
+  if (pointInTriangle(P, A, B, C)) return 0;
 
-  // Case 2: closest distance to any edge <= radius
   const dAB = distPointToSegment(P.x, P.y, A.x, A.y, B.x, B.y);
   const dBC = distPointToSegment(P.x, P.y, B.x, B.y, C.x, C.y);
   const dCA = distPointToSegment(P.x, P.y, C.x, C.y, A.x, A.y);
-  return (dAB <= r || dBC <= r || dCA <= r);
+  return Math.min(dAB, dBC, dCA);
+}
+/** Conservative hit test: only true if the *disk* intersects triangle with a visible overlap. */
+function circleTriangleOverlap(circle, tri) {
+  const r = circle.size;                       // actual radius used for drawing
+  const d = closestDistanceCenterToTriangle(circle, tri);
+  return d <= (r - CONTACT_SLACK);             // require a little extra closeness
 }
 
 // ===== Shape class =====
@@ -200,6 +207,8 @@ function initShapes() {
 
 // ===== Collision detection =====
 function checkCollision() {
+  let anyContact = false;
+
   for (let i = 0; i < shapes.length; i++) {
     for (let j = i + 1; j < shapes.length; j++) {
       const s1 = shapes[i];
@@ -207,13 +216,14 @@ function checkCollision() {
 
       if ((s1.type === 'circle' && s2.type === 'triangle') ||
           (s1.type === 'triangle' && s2.type === 'circle')) {
+
         const circle = s1.type === 'circle' ? s1 : s2;
         const tri    = s1.type === 'triangle' ? s1 : s2;
 
-        if (circleTriangleCollide(circle, tri)) {
-          handleGameOver();
-          return;
+        if (circleTriangleOverlap(circle, tri)) {
+          anyContact = true; // don't end yet; confirm over multiple frames
         }
+
       } else if (s1.type === s2.type) {
         // simple swap to simulate bounce
         const dx = s1.x - s2.x;
@@ -226,6 +236,16 @@ function checkCollision() {
         }
       }
     }
+  }
+
+  // require contact to persist for N frames to avoid “near miss” false positives
+  if (anyContact) {
+    contactStreak += 1;
+    if (contactStreak >= HIT_CONFIRM_FRAMES) {
+      handleGameOver();
+    }
+  } else {
+    contactStreak = 0;
   }
 }
 
@@ -251,7 +271,7 @@ function animate() {
 
   if (!isPaused) {
     shapes.forEach(s => { s.update(); s.draw(); });
-    checkCollision();
+    if (!gameOver) checkCollision();
   } else {
     // draw only + PAUSED overlay
     shapes.forEach(s => s.draw());
@@ -278,6 +298,7 @@ startBtn.addEventListener('click', () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
   isPaused = false;
+  contactStreak = 0;
   startBtn.style.display = 'none';
   restartBtn.style.display = 'none';
   refreshSidebarRect();
@@ -289,6 +310,7 @@ restartBtn.addEventListener('click', () => {
   score = 0; scoreDisplay.textContent = score;
   gameOver = false;
   isPaused = false;
+  contactStreak = 0;
   restartBtn.style.display = 'none';
   refreshSidebarRect();
   initShapes();          // spawns far from lastMouse and not under sidebar
